@@ -5,6 +5,7 @@
 #   ./deploy.sh root@1.2.3.4
 #   ./deploy.sh root@1.2.3.4 -p 8080
 #   ./deploy.sh root@1.2.3.4 --vmess "vmess://eyJ..."
+#   ./deploy.sh root@1.2.3.4 -u admin --pass secret
 
 set -e
 
@@ -18,9 +19,13 @@ SERVER="$1"; shift
 # Parse optional args
 PROXY_PORT=3080
 VMESS_URI=""
+AUTH_USER=""
+AUTH_PASS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -p) PROXY_PORT="$2"; shift 2 ;;
+    -u) AUTH_USER="$2"; shift 2 ;;
+    --pass) AUTH_PASS="$2"; shift 2 ;;
     --vmess) VMESS_URI="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -60,6 +65,8 @@ sudo chmod +x /usr/local/bin/socks5-proxy
 sudo tee /etc/socks5-proxy.env > /dev/null << 'CONF'
 PORT=$PROXY_PORT
 HOST=0.0.0.0
+AUTH_USER=$AUTH_USER
+AUTH_PASS=$AUTH_PASS
 VMESS=$VMESS_URI
 CONF
 
@@ -67,6 +74,7 @@ sudo tee /usr/local/bin/socks5-proxy-start > /dev/null << 'WRAPPER'
 #!/bin/bash
 source /etc/socks5-proxy.env 2>/dev/null || true
 ARGS="-p \${PORT:-3080} -h \${HOST:-0.0.0.0}"
+[ -n "\$AUTH_USER" ] && ARGS="\$ARGS -u \$AUTH_USER --pass \$AUTH_PASS"
 [ -n "\$VMESS" ] && ARGS="\$ARGS --vmess \$VMESS"
 exec /usr/local/bin/socks5-proxy \$ARGS
 WRAPPER
