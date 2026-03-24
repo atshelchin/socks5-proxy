@@ -18,6 +18,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # compiled binaries
 socks5-proxy
 socks5-proxy-linux
+socks5-proxy-linux-baseline
 
 # dotenv environment variable files
 .env

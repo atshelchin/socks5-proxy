@@ -27,12 +27,25 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BINARY="socks5-proxy-linux"
+
+# Detect server CPU capability and pick the right binary
+echo "Detecting server CPU..."
+HAS_AVX2=$(ssh "$SERVER" "grep -o avx2 /proc/cpuinfo | head -1" 2>/dev/null || true)
+
+if [ "$HAS_AVX2" = "avx2" ]; then
+  BINARY="socks5-proxy-linux"
+  TARGET="bun-linux-x64"
+  echo "  AVX2 supported → using optimized build"
+else
+  BINARY="socks5-proxy-linux-baseline"
+  TARGET="bun-linux-x64-baseline"
+  echo "  No AVX2 → using baseline build"
+fi
 
 # Build if needed
 if [ ! -f "$SCRIPT_DIR/$BINARY" ]; then
-  echo "Compiling for Linux..."
-  cd "$SCRIPT_DIR" && bun build --compile --target=bun-linux-x64 index.ts --outfile "$BINARY"
+  echo "Compiling $BINARY ..."
+  cd "$SCRIPT_DIR" && bun build --compile --target="$TARGET" index.ts --outfile "$BINARY"
 fi
 
 # Generate remote install script
