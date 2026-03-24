@@ -61,7 +61,9 @@ function startVMessServer() {
             if (at === 1) { st.th = `${ins[o]}.${ins[o! + 1]}.${ins[o! + 2]}.${ins[o! + 3]}`; o += 4; }
             else if (at === 2) { const dl = ins[o++]!; st.th = ins.subarray(o, o + dl).toString(); o += dl; }
 
-            const { key: bk, iv: bi } = deriveRequestBodyKeyIV(ky, iv, "aes-128-gcm");
+            // Server uses reqKey/IV from instruction directly (already SHA256'd by client)
+            const bk = Buffer.from(ky);
+            const bi = Buffer.from(iv);
             const { key: rk, iv: ri } = deriveResponseBodyKeyIV(bk, bi, "aes-128-gcm");
             st.respKey = rk; st.respIV = ri;
             st.decoder = createChunkDecoder(bk, bi, "aes-128-gcm");

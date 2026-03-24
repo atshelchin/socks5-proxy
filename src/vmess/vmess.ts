@@ -82,8 +82,12 @@ export function buildRequest(
   const timestamp = Math.floor(Date.now() / 1000);
 
   // Random keys for this connection
-  const dataKey = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
-  const dataIV = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
+  // v2ray-core: for AEAD, SHA256 the random values BEFORE writing to instruction.
+  // Server reads these directly from instruction and uses as-is for body encryption.
+  const rawKey = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
+  const rawIV = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
+  const dataKey = deriveRequestBodyKeyIV(rawKey, rawIV, aeadAlgo(config.security)).key;
+  const dataIV = deriveRequestBodyKeyIV(rawKey, rawIV, aeadAlgo(config.security)).iv;
   const responseAuthV = crypto.getRandomValues(new Uint8Array(1))[0]!;
 
   // --- Build instruction payload ---
@@ -193,9 +197,13 @@ export function buildRequest(
   // Assemble: AuthID(16) + encryptedLength(18) + connectionNonce(8) + encryptedPayload(var)
   const headerBuf = Buffer.concat([authID, encryptedLength, connectionNonce, encryptedPayload]);
 
-  // --- Derive body keys ---
+  // --- Body keys ---
+  // dataKey/dataIV are already SHA256-derived and written into instruction.
+  // Server reads them and uses as-is. We use same values for encryption.
   const algo = aeadAlgo(sec);
-  const { key: requestBodyKey, iv: requestBodyIV } = deriveRequestBodyKeyIV(dataKey, dataIV, algo);
+  const requestBodyKey = dataKey;
+  const requestBodyIV = dataIV;
+  // Response body key: SHA256 of request body key (per v2ray spec)
   const { key: responseBodyKey, iv: responseBodyIV } = deriveResponseBodyKeyIV(requestBodyKey, requestBodyIV, algo);
 
   return {
